@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Environment variables (IMPORTANT - keeps secrets safe!)
+.env
+.env.local
+
+# Reports (PDFs are generated, don't need in repo)
+reports/*.pdf
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Database (for future)
+*.db
+*.sqlite
+*.sqlite3

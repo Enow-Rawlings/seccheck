@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scan Results - SecCheck</title>
+    <meta name="description" content="Free website security scanner - Check your site for vulnerabilities">
+    
+    {% include 'analytics.html' %}
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        
+        h1 { 
+            color: #2563eb;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .domain-header {
+            text-align: center;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .domain-header h2 {
+            color: #1e293b;
+            margin: 0;
+        }
+        
+        .scan-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .section-title {
+            color: #1e293b;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        .success { color: #10b981; font-weight: bold; }
+        .warning { color: #f59e0b; font-weight: bold; }
+        .danger { color: #ef4444; font-weight: bold; }
+        .info { color: #6b7280; }
+        
+        .result-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: #f9fafb;
+            border-left: 4px solid #e5e7eb;
+            border-radius: 4px;
+        }
+        
+        .result-item.success-item { border-left-color: #10b981; }
+        .result-item.warning-item { border-left-color: #f59e0b; }
+        .result-item.danger-item { border-left-color: #ef4444; }
+        
+        button {
+            background: #2563eb;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            display: block;
+            margin: 30px auto;
+            transition: 0.3s;
+        }
+        
+        button:hover { 
+            background: #1d4ed8; 
+        }
+        
+        .score-section {
+            text-align: center;
+            background: linear-gradient(135deg, #2e3192 0%, #1bffff 100%);
+            color: white;
+        }
+        
+        .score-number {
+            font-size: 72px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        
+        .score-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            max-width: 400px;
+            margin: 0 auto;
+            text-align: left;
+        }
+
+        /* Tablet Responsive Styles */
+        @media (max-width: 768px) {
+            body {
+                margin: 30px auto;
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 28px;
+            }
+            
+            .score-number {
+                font-size: 56px;
+            }
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 480px) {
+            body {
+                margin: 15px auto;
+                padding: 12px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            .scan-section {
+                padding: 12px;
+            }
+            
+            .section-title {
+                font-size: 16px;
+            }
+            
+            .score-number {
+                font-size: 48px;
+                margin: 15px 0;
+            }
+            
+            button {
+                width: 100%;
+                padding: 12px 20px;
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>🔒 Security Scan Results</h1>
+    
+    <div class="domain-header">
+        <h2>{{ results.domain }}</h2>
+    </div>
+
+    <!-- SECURITY SCORE -->
+    <div class="scan-section score-section">
+        <h3 style="color: white; border: none; margin-bottom: 10px;">🎯 Security Health Score</h3>
+        
+        <div class="score-number">{{ results.score.score }}</div>
+        
+        <div style="font-size: 24px; margin-bottom: 10px;">
+            Grade: {{ results.score.rating }} - {{ results.score.status }}
+        </div>
+        
+        <p style="opacity: 0.9; margin: 20px 0;">
+            Based on {{ results.score.total_issues }} security issue(s) found
+        </p>
+        
+        {% if results.score.total_issues > 0 %}
+            <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin-top: 20px;">
+                <h4 style="color: white; margin-bottom: 10px;">Points Lost By Category:</h4>
+                <div class="score-grid">
+                    <div>🔌 Ports: -{{ results.score.breakdown.ports }}</div>
+                    <div>🔒 SSL: -{{ results.score.breakdown.ssl }}</div>
+                    <div>🛡️ Headers: -{{ results.score.breakdown.headers }}</div>
+                    <div>🌐 DNS: -{{ results.score.breakdown.dns }}</div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+    
+    <!-- PORT SCAN RESULTS -->
+    <div class="scan-section">
+        <h3 class="section-title">🔌 Port Security Analysis</h3>
+        
+        <p><strong>Total Open Ports:</strong> {{ results.ports.open_ports|length }}</p>
+        
+        {% if results.ports.open_ports %}
+            <h4>Open Ports:</h4>
+            {% for port in results.ports.open_ports %}
+                <div class="result-item success-item">
+                    <strong>Port {{ port.port }}:</strong> {{ port.service }}
+                </div>
+            {% endfor %}
+        {% endif %}
+        
+        {% if results.ports.risky_ports %}
+            <h4 class="warning">⚠️ Risky Ports Detected:</h4>
+            {% for risky in results.ports.risky_ports %}
+                <div class="result-item danger-item">
+                    <strong>Port {{ risky.port }}:</strong> {{ risky.service }}<br>
+                    <span class="info">{{ risky.reason }}</span>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="success">✓ No risky ports detected</p>
+        {% endif %}
+    </div>
+    
+    <!-- SSL RESULTS -->
+    <div class="scan-section">
+        <h3 class="section-title">🔒 SSL/TLS Certificate</h3>
+        
+        {% if results.ssl.has_ssl %}
+            {% if results.ssl.valid %}
+                <p class="success">✓ Valid SSL Certificate</p>
+            {% else %}
+                <p class="danger">✗ SSL Certificate Has Issues</p>
+            {% endif %}
+            
+            {% if results.ssl.issuer %}
+                <p><strong>Issued By:</strong> {{ results.ssl.issuer }}</p>
+            {% endif %}
+            
+            {% if results.ssl.expires %}
+                <p><strong>Expires:</strong> {{ results.ssl.expires }}</p>
+                <p><strong>Days Remaining:</strong> 
+                    <span class="{% if results.ssl.days_remaining < 30 %}warning{% else %}success{% endif %}">
+                        {{ results.ssl.days_remaining }} days
+                    </span>
+                </p>
+            {% endif %}
+            
+            {% if results.ssl.errors %}
+                <h4 class="warning">⚠️ Issues Found:</h4>
+                {% for error in results.ssl.errors %}
+                    <div class="result-item warning-item">
+                        {{ error }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% else %}
+            <p class="danger">✗ No SSL/TLS encryption detected</p>
+            <p class="info">This website does not use HTTPS. Data is transmitted unencrypted.</p>
+        {% endif %}
+    </div>
+    
+    <!-- HTTP HEADERS RESULTS -->
+    <div class="scan-section">
+        <h3 class="section-title">🛡️ HTTP Security Headers</h3>
+        
+        {% if results.headers.checked %}
+            <p><strong>Headers Checked:</strong> {{ results.headers.total_checked }}</p>
+            <p><strong>Present:</strong> <span class="success">{{ results.headers.present_headers|length }}</span></p>
+            <p><strong>Missing:</strong> <span class="{% if results.headers.missing_headers|length > 0 %}warning{% else %}success{% endif %}">{{ results.headers.missing_headers|length }}</span></p>
+            
+            {% if results.headers.present_headers %}
+                <h4 class="success">✓ Present Headers:</h4>
+                {% for header in results.headers.present_headers %}
+                    <div class="result-item success-item">
+                        <strong>{{ header.name }}</strong><br>
+                        <span class="info">{{ header.description }}</span>
+                    </div>
+                {% endfor %}
+            {% endif %}
+            
+            {% if results.headers.missing_headers %}
+                <h4 class="warning">⚠️ Missing Headers:</h4>
+                {% for header in results.headers.missing_headers %}
+                    <div class="result-item {% if header.risk == 'High' %}danger-item{% else %}warning-item{% endif %}">
+                        <strong>{{ header.name }}</strong> [{{ header.risk }} Risk]<br>
+                        <span class="info">{{ header.description }}</span>
+                    </div>
+                {% endfor %}
+            {% endif %}
+            
+            {% if results.headers.errors %}
+                <h4 class="danger">✗ Errors:</h4>
+                {% for error in results.headers.errors %}
+                    <div class="result-item danger-item">{{ error }}</div>
+                {% endfor %}
+            {% endif %}
+        {% else %}
+            <p class="danger">✗ Could not check headers</p>
+        {% endif %}
+    </div>
+
+    <!-- DNS RESULTS -->
+    <div class="scan-section">
+        <h3 class="section-title">🌐 DNS Configuration</h3>
+        
+        {% if results.dns.checked %}
+            {% if results.dns.a_records %}
+                <h4>IP Addresses ({{ results.dns.a_records|length }}):</h4>
+                {% for ip in results.dns.a_records %}
+                    <div class="result-item">{{ ip }}</div>
+                {% endfor %}
+            {% endif %}
+            
+            {% if results.dns.mx_records %}
+                <h4>Mail Servers ({{ results.dns.mx_records|length }}):</h4>
+                {% for mx in results.dns.mx_records %}
+                    <div class="result-item">
+                        {{ mx.server }} <span class="info">(priority: {{ mx.priority }})</span>
+                    </div>
+                {% endfor %}
+            {% endif %}
+            
+            {% if results.dns.ns_records %}
+                <h4>Nameservers ({{ results.dns.ns_records|length }}):</h4>
+                {% for ns in results.dns.ns_records %}
+                    <div class="result-item">{{ ns }}</div>
+                {% endfor %}
+            {% endif %}
+            
+            <p><strong>SPF Record:</strong> 
+                <span class="{% if results.dns.has_spf %}success{% else %}warning{% endif %}">
+                    {% if results.dns.has_spf %}✓ Found{% else %}✗ Not found{% endif %}
+                </span>
+            </p>
+            
+            {% if results.dns.info %}
+                <h4>ℹ️  Information:</h4>
+                {% for info in results.dns.info %}
+                    <div class="result-item">{{ info }}</div>
+                {% endfor %}
+            {% endif %}
+            
+            {% if results.dns.issues %}
+                <h4 class="warning">⚠️ Issues Found:</h4>
+                {% for issue in results.dns.issues %}
+                    <div class="result-item {% if issue.severity == 'High' %}danger-item{% else %}warning-item{% endif %}">
+                        <strong>[{{ issue.severity }}] {{ issue.type }}</strong><br>
+                        <span class="info">{{ issue.message }}</span>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="success">✓ No DNS issues detected</p>
+            {% endif %}
+        {% else %}
+            <p class="danger">✗ Could not check DNS</p>
+        {% endif %}
+    </div>
+    
+    <!-- Pricing Note - Limited Time Free -->
+    <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #f59e0b; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <div style="text-align: center;">
+            <h3 style="color: #92400e; margin: 0 0 10px 0; font-size: 20px;">
+                 Limited Time: FREE Beta Access!
+            </h3>
+            <p style="color: #78350f; margin: 0; font-size: 16px; line-height: 1.6;">
+                This professional security report is normally <strong style="text-decoration: line-through;">$29</strong> 
+                but <strong>FREE during our beta period!</strong>
+            </p>
+            <p style="color: #92400e; margin: 10px 0 0 0; font-size: 14px;">
+                Help us improve by <a href="mailto:feedback@seccheck.io" style="color: #2563eb; text-decoration: underline;">sharing your feedback</a> 
+                and get <strong>lifetime free access</strong> when we launch! 🚀
+            </p>
+        </div>
+    </div>
+
+    <!-- Download/Email PDF Section -->
+    <div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px;">
+        <h3 style="text-align: center;">📄 Get Your Professional Report</h3>
+        <p style="color: #64748b; margin: 15px 0; text-align: center;">
+            Download immediately or receive via email
+        </p>
+        
+        <!-- Download Button -->
+        <form method="POST" action="/download-pdf" style="text-align: center; margin-bottom: 20px;">
+            <input type="hidden" name="results" value='{{ results | tojson }}'>
+            <button type="submit" style="background: #10b981; font-size: 16px; padding: 12px 30px; display: inline-block; margin: 0 auto;" onclick="gtag('event', 'download_pdf', {'event_category': 'report', 'event_label': '{{ results.domain }}'})">
+                 Download PDF Now
+            </button>
+        </form>
+        
+        <!-- OR Divider -->
+        <div style="text-align: center; margin: 20px 0; color: #94a3b8; position: relative;">
+            <hr style="border: none; border-top: 1px solid #e2e8f0;">
+            <span style="background: white; padding: 0 10px; position: relative; top: -12px;">OR</span>
+        </div>
+        
+        <!-- Email Form -->
+        <form method="POST" action="/email-report" style="max-width: 400px; margin: 0 auto;">
+            <input type="hidden" name="results" value='{{ results | tojson }}'>
+            
+            <div style="margin-bottom: 15px;">
+                <label for="email" style="display: block; margin-bottom: 5px; font-weight: 600; text-align: left;">
+                    📧 Email Report To:
+                </label>
+                <input 
+                    type="email" 
+                    id="email" 
+                    name="email" 
+                    placeholder="your@email.com"
+                    required
+                    style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;"
+                >
+            </div>
+            
+            <button type="submit" onclick="gtag('event', 'email_report', {'event_category': 'report', 'event_label': '{{ results.domain }}'});" style="background: #2563eb; font-size: 16px; padding: 12px 30px; width: 100%;">
+                📨 Email Me The Report
+            </button>
+        </form>
+        
+        <p style="color: #94a3b8; font-size: 14px; margin-top: 20px; text-align: center;">
+            <i>Free for now - Normally $29</i>
+        </p>
+    </div>
+
+    <button onclick="window.location.href='/'">Scan Another Domain</button>
+</body>
+</html>

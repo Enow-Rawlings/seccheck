@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Error - SecCheck</title>
+     {% include 'analytics.html' %}
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 100px auto;
+            padding: 20px;
+            text-align: center;
+            background: #f8fafc;
+        }
+        .error-container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #ef4444;
+            font-size: 48px;
+            margin: 0;
+        }
+        h2 {
+            color: #1e293b;
+            margin: 20px 0;
+        }
+        p {
+            color: #64748b;
+            font-size: 18px;
+            line-height: 1.6;
+        }
+        .domain {
+            background: #fef2f2;
+            padding: 10px;
+            border-radius: 5px;
+            color: #991b1b;
+            font-family: monospace;
+            margin: 20px 0;
+        }
+        button {
+            background: #2563eb;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+        button:hover { background: #1d4ed8; }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <h1>⚠️</h1>
+        <h2>{{ error_title }}</h2>
+        
+        {% if domain %}
+            <div class="domain">{{ domain }}</div>
+        {% endif %}
+        
+        <p>{{ error_message }}</p>
+        
+        <button onclick="window.location.href='/'">Try Again</button>
+    </div>
+</body>
+</html>

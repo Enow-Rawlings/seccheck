@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecCheck - Website Security Scanner</title>
+    <meta name="description" content="Free website security scanner - Check your site for vulnerabilities">
+    
+    {% include 'analytics.html' %}
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h2 {
+            font-size: 32px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+         p {
+            text-align: center;
+            font-size: 18px;
+            margin-bottom: 30px;
+            color: #666;
+        }
+        
+        form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        input[type="text"] {
+            padding: 14px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            flex: 1;
+            min-width: 250px;
+        }
+        
+        .btn {
+            flex: 0 0 auto;
+            padding: 14px 28px;
+            white-space: nowrap;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #2e3192 0%, #1bffff 100%);
+            color:white;
+            font-weight: bold;
+        }
+        
+        .email-form-container {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .email-form-container input[type="email"] {
+            flex: 1;
+            min-width: 250px;
+        }
+        
+        .email-form-container button {
+            white-space: nowrap;
+        }
+        
+        .email-collection {
+            background: linear-gradient(135deg, #2e3192 0%, #1bffff 100%);
+            padding: 40px 20px;
+            border-radius: 12px;
+            margin: 40px 0;
+            color: white;
+            text-align: center;
+        }
+        
+        .email-collection h3 {
+            color: white;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .email-collection p {
+            opacity: 0.95;
+            margin-bottom: 25px;
+            font-size: 16px;
+        }
+        
+        .beta-form {
+            max-width: 500px;
+            margin: 0 auto;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .beta-form input {
+            flex: 1;
+            min-width: 200px;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        .beta-form button {
+            background: #10b981;
+            color: white;
+            padding: 14px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        
+        .beta-form button:hover {
+            background: #059669;
+            transition: 0.3s;
+        }
+        
+        .email-collection .footer-text {
+            margin-top: 15px;
+            font-size: 13px;
+            opacity: 0.8;
+        }
+        
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            body {
+                padding: 15px;
+            }
+            
+            h2 {
+                font-size: 24px;
+                margin-bottom: 12px;
+            }
+            
+             p {
+                font-size: 16px;
+                margin-bottom: 25px;
+            }
+            
+            form {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            input[type="text"] {
+                width: 100%;
+                min-width: unset;
+            }
+            
+            .email-collection {
+                padding: 30px 15px;
+                margin: 30px 0;
+            }
+            
+            .email-collection h3 {
+                font-size: 20px;
+            }
+            
+            .email-collection p {
+                font-size: 14px;
+                margin-bottom: 20px;
+            }
+            
+            .beta-form {
+                flex-direction: column;
+            }
+            
+            .beta-form input,
+            .beta-form button {
+                width: 100%;
+                min-width: unset;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            body {
+                padding: 12px;
+            }
+            
+            h2 {
+                font-size: 20px;
+                margin-bottom: 10px;
+            }
+            
+             p {
+                font-size: 14px;
+                margin-bottom: 20px;
+            }
+            
+            .email-collection {
+                padding: 20px 12px;
+                margin: 20px 0;
+            }
+            
+            .email-collection h3 {
+                font-size: 18px;
+                margin-bottom: 8px;
+            }
+            
+            .email-collection p {
+                font-size: 13px;
+                margin-bottom: 18px;
+            }
+            
+            .beta-form input,
+            .beta-form button {
+                padding: 12px;
+                font-size: 14px;
+            }
+            
+            .email-collection .footer-text {
+                font-size: 12px;
+            }
+        }
+    </style>
+
+</head>
+<body>
+    <h2>🔒 SecCheck Security Scanner</h2>
+    <p>Enter a domain name to scan for security vulnerabilities</p>
+    <form action="/scan" method="post">
+        <input type="text" name="domain" placeholder="Enter domain name" required>
+       <button type="submit" onclick="gtag('event', 'start_scan', {'event_category': 'scan'});" id="scanButton" class="btn btn-primary">
+    <span class="btn-text">Start Security Scan</span>
+    <span class="btn-loader" style="display: none;">
+        <span class="spinner"></span>
+        Scanning...
+    </span>
+</button>
+
+    </form>
+
+    <!-- Email Collection Section -->
+    <section class="email-collection">
+        <h3>🚀 Get Early Access & Lifetime Free Reports</h3>
+        <p>We're launching premium features soon. Join our beta testers and get <strong>lifetime free access</strong> when we officially launch!</p>
+        
+        <form action="https://formspree.io/f/mgolqgog" method="POST" class="beta-form">
+            <input 
+                type="email" 
+                name="email" 
+                placeholder="Enter your email" 
+                required
+            >
+            <button type="submit">Join Beta</button>
+        </form>
+        
+        <p class="footer-text">✨ No spam, just updates on new features and your lifetime free access</p>
+    </section>
+
+</body>
+</html>

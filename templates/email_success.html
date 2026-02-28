@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Sent - SecCheck</title>
+     {% include 'analytics.html' %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            text-align: center;
+            background: #f8fafc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .success-container {
+            background: linear-gradient(135deg, #2e3192 0%, #1bffff 100%);
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #10b981;
+            font-size: 48px;
+            margin: 0;
+        }
+        
+        h2 {
+            color: white;
+            margin: 20px 0;
+            font-size: 28px;
+        }
+        
+        p {
+            color: white;
+            font-size: 16px;
+            line-height: 1.6;
+            margin: 15px 0;
+        }
+        
+        .email {
+            background: #f0fdf4;
+            padding: 15px;
+            border-radius: 8px;
+            color: #047857;
+            font-family: monospace;
+            margin: 20px 0;
+            font-size: 16px;
+            word-break: break-all;
+        }
+        
+        .score {
+            background: #eff6ff;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .score-number {
+            font-size: 48px;
+            font-weight: bold;
+            color: #2563eb;
+            margin: 10px 0;
+        }
+        
+        button {
+            background: #2563eb;
+            color: white;
+            padding: 14px 28px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+        
+        button:hover { 
+            background: #1d4ed8; 
+        }
+        
+        .tips {
+            background: #fef3c7;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: left;
+        }
+        
+        .tips h4 {
+            margin: 0 0 15px 0;
+            color: #92400e;
+            font-size: 18px;
+        }
+        
+        .tips ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        
+        .tips li {
+            color: #78350f;
+            margin: 10px 0;
+            line-height: 1.6;
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            body {
+                margin: 0 auto;
+                padding: 15px;
+            }
+            
+            .success-container {
+                padding: 30px;
+            }
+            
+            h1 {
+                font-size: 56px;
+            }
+            
+            h2 {
+                font-size: 24px;
+                margin: 15px 0;
+            }
+            
+            p {
+                font-size: 15px;
+            }
+            
+            .score-number {
+                font-size: 44px;
+            }
+            
+            button {
+                width: 100%;
+                padding: 16px 24px;
+                font-size: 17px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                margin: 0;
+                padding: 12px;
+                min-height: auto;
+            }
+            
+            .success-container {
+                padding: 25px;
+                border-radius: 8px;
+            }
+            
+            h1 {
+                font-size: 48px;
+            }
+            
+            h2 {
+                font-size: 22px;
+                margin: 12px 0;
+            }
+            
+            p {
+                font-size: 14px;
+                margin: 12px 0;
+            }
+            
+            .email {
+                padding: 12px;
+                font-size: 14px;
+                margin: 15px 0;
+            }
+            
+            .score {
+                padding: 15px;
+                margin: 15px 0;
+            }
+            
+            .score-number {
+                font-size: 40px;
+                margin: 8px 0;
+            }
+            
+            .tips {
+                padding: 15px;
+                margin-top: 15px;
+            }
+            
+            .tips h4 {
+                font-size: 16px;
+                margin: 0 0 12px 0;
+            }
+            
+            .tips li {
+                font-size: 13px;
+                margin: 8px 0;
+            }
+            
+            button {
+                width: 100%;
+                padding: 14px 20px;
+                font-size: 16px;
+                margin-top: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="success-container">
+        <h1>✅</h1>
+        <h2>Report Sent Successfully!</h2>
+        
+        <p>Your security report for <strong>{{ domain }}</strong> has been emailed to:</p>
+        
+        <div class="email">{{ email }}</div>
+        
+        <div class="score">
+            <div>Security Score</div>
+            <div class="score-number">{{ score }}</div>
+        </div>
+        
+        <p>Check your inbox (and spam folder) for the detailed PDF report.</p>
+        
+        <div class="tips">
+            <h4>📬 Email Tips:</h4>
+            <ul>
+                <li>Check your spam/junk folder if you don't see it</li>
+                <li>Add noreply@seccheck.io to your contacts</li>
+                <li>The email contains a detailed PDF with fix instructions</li>
+                <li>Save the PDF for your security records</li>
+            </ul>
+        </div>
+        
+        <button onclick="window.location.href='/'">Scan Another Domain</button>
+    </div>
+</body>
+</html>

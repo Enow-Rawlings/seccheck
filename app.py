@@ -129,84 +129,77 @@ def download_pdf():
 
 @app.route('/email-report', methods=['POST'])
 def email_report():
-    """Generate PDF report and send via email"""
+    """Generate PDF and email it to user - async version"""
     from report.pdf_generator import generate_pdf_report
     import json
+    import threading
     
-    # Get the scan results and email from the form
+    # Get data
     results_json = request.form.get('results')
     email = request.form.get('email')
-
-    #validate email
+    
     if not email or '@' not in email:
-        return render_template('error.html', 
-        error_Title='Invalid email address', 
-        error_Message=f"The email address '{email}' does not appear to be valid. Please check and try again.", 
-        domain=None
-        )
-    results = json.loads(results_json)
-    domain = results['domain']
-    # Generate PDF
-    print(f"\n{'='*50}")
-    print(f"Generating and emailing report for: {domain}")
-    print(f"sending to: {email}")
-    print(f"{'='*50}\n")
-
-    try:
-        #generate pdf 
-        pdf_path = generate_pdf_report(results)
-
-        #create email
-        msg = Message(
-            subject=f"SecCheck Report for {domain}",
-            recipients=[email]
-        )
-
-        score  = results['score']['score']
-        rating = results['score']['rating']
-        msg.body = f"""
-        Hello, 
-        Your security report for {domain} is ready!
-        Security Score: {score}/100 (Grade {rating})
-        Please find the detailed PDF report attached to this email.
-        Key Findings: 
-        - Total issues found: {results['score']['total_issues']}
-        - Port Security: {len(results['ports'].get('risky_ports', []))} risky ports found
-        - SSL Status: {'Valid' if results['ssl'].get('valid') else 'Issues Detected'}
-        - Missing Headers: {len(results['headers'].get('missing_headers', []))}
-
-        Review the attached report for detailed findings and recommended fixes.
-
-        Thank you for using SecCheck!
-        
-        ---
-        SecCheck - Professional Website Security Scanner
-        https://seccheck.io
-        """
-        #Attach PDF
-        with open(pdf_path, 'rb') as pdf_file:
-            msg.attach(f"SecCheck_Report_{domain}.pdf",
-                        "application/pdf", 
-                        pdf_file.read()
-                        )
-        #Send email
-        mail.send(msg)
-        print(f"Email sent successfully to {email}")
-
-        #shpw success page
-        return render_template('email_success.html',
-                                email=email,
-                                domain=domain,
-                                score=score
-                                )
-    except Exception as e:
-        print(f"Error sending email: {str(e)}")
-        return render_template('error.html', 
-        error_Title='Email Sending Failed', 
-        error_Message=f"An error occurred while sending the email: {str(e)}. Please try again or try downloading the PDF instead. Error: {str(e)}", 
-        domain=domain
+        return render_template('error.html',
+            error_title="Invalid Email",
+            error_message="Please provide a valid email address.",
+            domain=None
         )
     
+    results = json.loads(results_json)
+    domain = results['domain']
+    score = results['score']['score']
+    
+    # Send email in background thread (doesn't block)
+    def send_email_async():
+        with app.app_context():
+            try:
+                # Generate PDF
+                pdf_path = generate_pdf_report(results)
+                
+                # Create email
+                msg = Message(
+                    subject=f"SecCheck Security Report - {domain}",
+                    recipients=[email]
+                )
+                
+                msg.body = f"""
+Hello,
+
+Your SecCheck security report for {domain} is ready!
+
+Security Score: {score}/100
+
+Please find the detailed PDF report attached.
+
+Thank you for using SecCheck!
+"""
+                
+                # Attach PDF
+                with open(pdf_path, 'rb') as pdf_file:
+                    msg.attach(
+                        f"SecCheck_Report_{domain}.pdf",
+                        "application/pdf",
+                        pdf_file.read()
+                    )
+                
+                # Send
+                mail.send(msg)
+                print(f"✓ Email sent to {email}")
+                
+            except Exception as e:
+                print(f"✗ Email failed: {str(e)}")
+    
+    # Start background thread
+    thread = threading.Thread(target=send_email_async)
+    thread.start()
+    
+    # Return immediately (don't wait for email)
+    return render_template('email_success.html', 
+        email=email,
+        domain=domain,
+        score=score
+    )
+
     # Send email with PDF attachment
     print(f"Sending email to: {email}")
     

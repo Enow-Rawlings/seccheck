@@ -130,19 +130,18 @@ def download_pdf():
 
 @app.route('/email-report', methods=['POST'])
 def email_report():
-    """Generate PDF and email it to user - async version"""
-    from report.pdf_generator import generate_pdf_report
     import json
-    import threading
+    import requests as req
+    from report.pdf_generator import generate_pdf_report
+    import base64
     
-    # Get data
     results_json = request.form.get('results')
     email = request.form.get('email')
     
     if not email or '@' not in email:
         return render_template('error.html',
             error_title="Invalid Email",
-            error_message="Please provide a valid email address.",
+            error_message="Invalid email.",
             domain=None
         )
     
@@ -150,56 +149,46 @@ def email_report():
     domain = results['domain']
     score = results['score']['score']
     
-    # Send email in background thread (doesn't block)
-    def send_email_async():
+    def send_via_api():
         with app.app_context():
             try:
                 # Generate PDF
                 pdf_path = generate_pdf_report(results)
                 
-                # Create email
-                msg = Message(
-                    subject=f"SecCheck Security Report - {domain}",
-                    recipients=[email]
-                )
+                # Read PDF as base64
+                with open(pdf_path, 'rb') as f:
+                    pdf_base64 = base64.b64encode(f.read()).decode()
                 
-                msg.body = f"""
-Hello,
-
-Your SecCheck security report for {domain} is ready!
-
-Security Score: {score}/100
-
-Please find the detailed PDF report attached.
-
-Thank you for using SecCheck!
-"""
+                # Brevo API
+                url = "https://api.brevo.com/v3/smtp/email"
+                headers = {
+                    "accept": "application/json",
+                    "content-type": "application/json",
+                    "api-key": os.environ.get('BREVO_API_KEY')
+                }
                 
-                # Attach PDF
-                with open(pdf_path, 'rb') as pdf_file:
-                    msg.attach(
-                        f"SecCheck_Report_{domain}.pdf",
-                        "application/pdf",
-                        pdf_file.read()
-                    )
+                payload = {
+                    "sender": {"email": os.environ.get('BREVO_SMTP_USER')},
+                    "to": [{"email": email}],
+                    "subject": f"SecCheck Security Report - {domain}",
+                    "htmlContent": f"<p>Your security report for {domain} is attached. Score: {score}/100</p>",
+                    "attachment": [{
+                        "content": pdf_base64,
+                        "name": f"SecCheck_Report_{domain}.pdf"
+                    }]
+                }
                 
-                # Send
-                mail.send(msg)
-                print(f"✓ Email sent to {email}")
+                response = req.post(url, json=payload, headers=headers)
+                print(f"✓ Email sent via API: {response.status_code}")
                 
             except Exception as e:
-                print(f"✗ Email failed: {str(e)}")
+                print(f"✗ API failed: {e}")
     
-    # Start background thread
-    thread = threading.Thread(target=send_email_async)
-    thread.start()
+    import threading
+    threading.Thread(target=send_via_api).start()
     
-    # Return immediately (don't wait for email)
-    return render_template('email_success.html', 
-        email=email,
-        domain=domain,
-        score=score
-    )
+    return render_template('email_success.html', email=email, domain=domain, score=score)
+
 
     # Send email with PDF attachment
     print(f"Sending email to: {email}")

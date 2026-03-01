@@ -13,14 +13,14 @@ app = Flask(__name__)
 
 # Configure email settings
 # Check for Resend first (easiest)
-if os.environ.get('RESEND_API_KEY'):
-    # We'll use Flask-Mail but with Resend's SMTP
-    app.config['MAIL_SERVER'] = 'smtp.resend.com'
+# Brevo (works on Railway, no card needed)
+if os.environ.get('BREVO_SMTP_KEY'):
+    app.config['MAIL_SERVER'] = 'smtp-relay.brevo.com'
     app.config['MAIL_PORT'] = 587
     app.config['MAIL_USE_TLS'] = True
-    app.config['MAIL_USERNAME'] = 'resend'
-    app.config['MAIL_PASSWORD'] = os.environ.get('RESEND_API_KEY')
-    app.config['MAIL_DEFAULT_SENDER'] = 'noreply@resend.dev'
+    app.config['MAIL_USERNAME'] = os.environ.get('BREVO_SMTP_USER')
+    app.config['MAIL_PASSWORD'] = os.environ.get('BREVO_SMTP_KEY')
+    app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('BREVO_SMTP_USER')
 else:
     # Gmail fallback
     app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -29,6 +29,7 @@ else:
     app.config['MAIL_USERNAME'] = os.environ.get('EMAIL_USER')
     app.config['MAIL_PASSWORD'] = os.environ.get('EMAIL_PASS')
     app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('EMAIL_USER')
+
 
 mail = Mail(app)
 

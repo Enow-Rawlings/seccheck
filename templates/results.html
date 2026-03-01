@@ -385,7 +385,7 @@
     <div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px;">
         <h3 style="text-align: center;">📄 Get Your Professional Report</h3>
         <p style="color: #64748b; margin: 15px 0; text-align: center;">
-            Download immediately or receive via email
+            Download immediately
         </p>
         
         <!-- Download Button -->
@@ -403,7 +403,7 @@
         </div>
         
         <!-- Email Form -->
-        <form method="POST" action="/email-report" style="max-width: 400px; margin: 0 auto;">
+        <!-- <form method="POST" action="/email-report" style="max-width: 400px; margin: 0 auto;">
             <input type="hidden" name="results" value='{{ results | tojson }}'>
             
             <div style="margin-bottom: 15px;">
@@ -423,7 +423,15 @@
             <button type="submit" onclick="gtag('event', 'email_report', {'event_category': 'report', 'event_label': '{{ results.domain }}'});" style="background: #2563eb; font-size: 16px; padding: 12px 30px; width: 100%;">
                 📨 Email Me The Report
             </button>
-        </form>
+        </form> -->
+        <!-- Email Coming Soon -->
+<div style="text-align: center; margin: 20px 0; padding: 20px; background: #eff6ff; border-radius: 8px; border: 2px dashed #3b82f6;">
+    <p style="color: #1e40af; margin: 0; font-size: 16px;">
+        📧 <strong>Email delivery coming soon!</strong><br>
+        <span style="font-size: 14px;">For now, use the download button above to save your report.</span>
+    </p>
+</div>
+
         
         <p style="color: #94a3b8; font-size: 14px; margin-top: 20px; text-align: center;">
             <i>Free for now - Normally $29</i>

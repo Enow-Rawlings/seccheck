@@ -4,6 +4,8 @@ from datetime import datetime
 
 # Check if running on Railway (has DATABASE_URL)
 DATABASE_URL = os.environ.get('DATABASE_URL')
+print(f"DEBUG: DATABASE_URL exists: {bool(DATABASE_URL)}")
+print(f"DEBUG: DATABASE_URL value: {DATABASE_URL[:50] if DATABASE_URL else 'None'}")
 
 if DATABASE_URL:
     # Use PostgreSQL on Railway

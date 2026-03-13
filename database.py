@@ -17,28 +17,36 @@ if DATABASE_URL:
     
     def init_db():
         """Initialize PostgreSQL database"""
-        conn = get_connection()
-        c = conn.cursor()
+        print("Initializing PostgreSQL database...")
+
+        try:
+            conn = get_connection()
+            c = conn.cursor()
+            
+            c.execute('''
+                CREATE TABLE IF NOT EXISTS scans (
+                    id SERIAL PRIMARY KEY,
+                    domain TEXT NOT NULL,
+                    score INTEGER,
+                    grade TEXT,
+                    scan_date TIMESTAMP,
+                    results TEXT,
+                    user_ip TEXT
+                )
+            ''')
+            print("Creating Indexes...")
+            c.execute('CREATE INDEX IF NOT EXISTS idx_domain ON scans(domain)')
+            c.execute('CREATE INDEX IF NOT EXISTS idx_date ON scans(scan_date DESC)')
+            
+            conn.commit()
+            conn.close()
+            print("✓ PostgreSQL database initialized")
         
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS scans (
-                id SERIAL PRIMARY KEY,
-                domain TEXT NOT NULL,
-                score INTEGER,
-                grade TEXT,
-                scan_date TIMESTAMP,
-                results TEXT,
-                user_ip TEXT
-            )
-        ''')
+        except Exception as e:
+            print(f"Database initialization failed: {e}")
+            import traceback
+            traceback.print_exc()
         
-        c.execute('CREATE INDEX IF NOT EXISTS idx_domain ON scans(domain)')
-        c.execute('CREATE INDEX IF NOT EXISTS idx_date ON scans(scan_date DESC)')
-        
-        conn.commit()
-        conn.close()
-        print("✓ PostgreSQL database initialized")
-    
     def save_scan(domain, results, user_ip=None):
         """Save scan to PostgreSQL"""
         conn = get_connection()

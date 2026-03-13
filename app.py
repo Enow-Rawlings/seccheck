@@ -122,7 +122,9 @@ def scan_stream(domain):
             results['score'] = score_data
             
             # Save to database
-            from database import save_scan, get_scan_history
+            from database import init_db, save_scan, get_scan_history
+            init_db()
+            print("Database Initialized")
             user_ip = request.remote_addr
             scan_id = save_scan(domain, results, user_ip)
             

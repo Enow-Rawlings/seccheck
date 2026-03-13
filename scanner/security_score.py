@@ -142,33 +142,39 @@ def calculate_security_score(results):
     # ====================================================================
     score = max(0, min(100, score))
     
-    # ====================================================================
+       # ====================================================================
     # DETERMINE RATING
     # ====================================================================
     if score >= 90:
-        rating = 'A'
+        rating = 'Excellent'
+        grade = 'A'
         status = 'Excellent'
         color = 'success'
     elif score >= 80:
-        rating = 'B'
+        rating = 'Good'
+        grade = 'B'
         status = 'Good'
         color = 'success'
     elif score >= 70:
-        rating = 'C'
+        rating = 'Fair'
+        grade = 'C'
         status = 'Fair'
         color = 'warning'
     elif score >= 60:
-        rating = 'D'
+        rating = 'Poor'
+        grade = 'D'
         status = 'Poor'
         color = 'warning'
     else:
-        rating = 'F'
+        rating = 'Critical'
+        grade = 'F'
         status = 'Critical'
         color = 'danger'
     
     return {
         'score': score,
         'rating': rating,
+        'grade': grade,  # ADDED THIS
         'status': status,
         'color': color,
         'total_issues': len(issues_found),
@@ -180,6 +186,7 @@ def calculate_security_score(results):
             'dns': sum(i['points_lost'] for i in issues_found if i['category'] == 'DNS')
         }
     }
+
 
 
 # Test the calculator

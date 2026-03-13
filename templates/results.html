@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scan Results - SecCheck</title>
+    <title>Scan Results - SiteShield</title>
     <meta name="description" content="Free website security scanner - Check your site for vulnerabilities">
     
     {% include 'analytics.html' %}
@@ -173,6 +173,53 @@
     <div class="domain-header">
         <h2>{{ results.domain }}</h2>
     </div>
+
+            <!-- Scan History -->
+        {% if history and history|length > 1 %}
+        <div class="scan-section">
+            <h3 class="section-title">📊 Scan History</h3>
+            <p class="info" style="margin-bottom: 15px;">Track your security improvements over time</p>
+            
+            <div style="display: flex; gap: 10px; overflow-x: auto; padding: 10px 0;">
+                {% for scan in history %}
+                <div style="background: {% if loop.first %}#eff6ff{% else %}#f9fafb{% endif %}; 
+                            padding: 15px; 
+                            border-radius: 8px; 
+                            min-width: 120px; 
+                            text-align: center;
+                            border: {% if loop.first %}2px solid #2563eb{% else %}1px solid #e5e7eb{% endif %};">
+                    <div style="font-size: 32px; 
+                                font-weight: bold; 
+                                color: {% if scan.score >= 80 %}#10b981{% elif scan.score >= 60 %}#f59e0b{% else %}#ef4444{% endif %};">
+                        {{ scan.score }}
+                    </div>
+                    <div class="info" style="font-size: 12px; margin-top: 5px;">
+                        {{ scan.date[:10] }}
+                    </div>
+                    {% if loop.first %}
+                    <div style="color: #2563eb; font-size: 11px; font-weight: 600; margin-top: 5px;">LATEST</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            
+            {% if history|length > 1 %}
+            <div style="margin-top: 15px; 
+                        padding: 12px; 
+                        background: {% if history[0].score > history[1].score %}#d1fae5{% elif history[0].score < history[1].score %}#fee2e2{% else %}#e0e7ff{% endif %}; 
+                        border-radius: 8px;">
+                {% if history[0].score > history[1].score %}
+                <strong style="color: #047857;">↗ Improving!</strong> Your score increased by {{ history[0].score - history[1].score }} points
+                {% elif history[0].score < history[1].score %}
+                <strong style="color: #dc2626;">↘ Declining</strong> Your score dropped by {{ history[1].score - history[0].score }} points
+                {% else %}
+                <strong style="color: #4f46e5;">→ Stable</strong> No change since last scan
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
 
     <!-- SECURITY SCORE -->
     <div class="scan-section score-section">
@@ -375,7 +422,7 @@
                 but <strong>FREE during our beta period!</strong>
             </p>
             <p style="color: #92400e; margin: 10px 0 0 0; font-size: 14px;">
-                Help us improve by <a href="mailto:feedback@seccheck.io" style="color: #2563eb; text-decoration: underline;">sharing your feedback</a> 
+                Help us improve by <a href="mailto:feedback@SiteShield.io" style="color: #2563eb; text-decoration: underline;">sharing your feedback</a> 
                 and get <strong>lifetime free access</strong> when we launch! 🚀
             </p>
         </div>
@@ -389,7 +436,7 @@
         </p>
         
         <!-- Download Button -->
-        <form method="POST" action="/download-pdf" style="text-align: center; margin-bottom: 20px;">
+        <form method="POST" action="/download-pdf/{{ scan_id }}" style="text-align: center; margin-bottom: 20px;">
             <input type="hidden" name="results" value='{{ results | tojson }}'>
             <button type="submit" style="background: #10b981; font-size: 16px; padding: 12px 30px; display: inline-block; margin: 0 auto;" onclick="gtag('event', 'download_pdf', {'event_category': 'report', 'event_label': '{{ results.domain }}'})">
                  Download PDF Now
@@ -403,7 +450,7 @@
         </div>
         
         <!-- Email Form -->
-        <!-- <form method="POST" action="/email-report" style="max-width: 400px; margin: 0 auto;">
+        <!-- <form method="POST" action="/email-report/{{ scan_id }}" style="max-width: 400px; margin: 0 auto;">
             <input type="hidden" name="results" value='{{ results | tojson }}'>
             
             <div style="margin-bottom: 15px;">

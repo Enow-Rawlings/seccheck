@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SecCheck - Website Security Scanner</title>
+    <title>SiteShield - Website Security Scanner</title>
     <meta name="description" content="Free website security scanner - Check your site for vulnerabilities">
     
     {% include 'analytics.html' %}
@@ -31,6 +31,9 @@
             font-size: 32px;
             margin-bottom: 15px;
             text-align: center;
+        }
+        #description{
+            color: black
         }
         
          p {
@@ -241,10 +244,18 @@
 
 </head>
 <body>
-    <h2>🔒 SecCheck Security Scanner</h2>
-    <p>Enter a domain name to scan for security vulnerabilities</p>
+
+    <div style="text-align: center; margin-bottom: 20px;">
+    <a href="/history" style="color: #2563eb; text-decoration: none;">📊 View Scan History</a>
+</div>
+
+
+
+
+    <h2>🔒 SiteShield Security Scanner</h2>
+    <p id="description">Enter a domain name to scan for security vulnerabilities</p>
     <form action="/scan" method="post">
-        <input type="text" name="domain" placeholder="Enter domain name" required>
+       <input type="text" name="domain" id="domainInput" placeholder="example.com" value="{{ prefill_domain }}" required>
        <button type="submit" onclick="gtag('event', 'start_scan', {'event_category': 'scan'});" id="scanButton" class="btn btn-primary">
     <span class="btn-text">Start Security Scan</span>
     <span class="btn-loader" style="display: none;">

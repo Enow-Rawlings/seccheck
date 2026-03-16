@@ -1,4 +1,5 @@
 import dns.resolver
+import dns.exception
 
 def check_dns(domain):
     """
@@ -20,10 +21,13 @@ def check_dns(domain):
     
     try:
         print(f"Checking DNS for {domain}...")
+        
+        # Configure resolver with aggressive timeouts
         resolver = dns.resolver.Resolver()
-        resolver.timeout = 10
-        resolver.lifetime = 10
-        resolver.nameservers = ['8.8.8.8', '8.8.4.4']
+        resolver.timeout = 3  # 3 seconds per nameserver attempt
+        resolver.lifetime = 8  # 8 seconds total timeout per query
+        resolver.nameservers = ['8.8.8.8', '8.8.4.4']  # Use Google DNS
+        
         results['checked'] = True
         
         # Check A Records (IPv4 addresses)
@@ -37,12 +41,10 @@ def check_dns(domain):
                 'severity': 'High',
                 'message': 'No A records found - domain may not be accessible'
             })
+        except dns.resolver.Timeout:
+            print(f"  ⚠ A record lookup timed out")
         except Exception as e:
-            results['issues'].append({
-                'type': 'A Record',
-                'severity': 'Medium',
-                'message': f'Could not resolve A records: {str(e)}'
-            })
+            print(f"  ⚠ A record error: {str(e)[:30]}")
         
         # Check MX Records (Email servers)
         try:
@@ -65,6 +67,8 @@ def check_dns(domain):
                 })
         except dns.resolver.NoAnswer:
             results['info'].append('No email servers configured (no MX records)')
+        except dns.resolver.Timeout:
+            print(f"  ⚠ MX record lookup timed out")
         except Exception:
             pass
         
@@ -89,6 +93,8 @@ def check_dns(domain):
                         })
         except dns.resolver.NoAnswer:
             pass
+        except dns.resolver.Timeout:
+            print(f"  ⚠ TXT record lookup timed out")
         except Exception:
             pass
         
@@ -109,10 +115,12 @@ def check_dns(domain):
             # Check for redundancy
             if len(results['ns_records']) < 2:
                 results['issues'].append({
-'type': 'DNS',
+                    'type': 'DNS',
                     'severity': 'High',
                     'message': 'Less than 2 nameservers - no redundancy if one fails'
                 })
+        except dns.resolver.Timeout:
+            print(f"  ⚠ NS record lookup timed out")
         except Exception:
             pass
         
@@ -121,13 +129,23 @@ def check_dns(domain):
         print(f"    Mail servers: {len(results['mx_records'])}")
         print(f"    Issues found: {len(results['issues'])}")
         
+    except dns.resolver.Timeout:
+        results['issues'].append({
+            'type': 'DNS',
+            'severity': 'High',
+            'message': 'DNS lookup timed out - domain DNS servers too slow'
+        })
+        results['checked'] = True
+        print(f"  ⚠ DNS check timed out")
+        
     except Exception as e:
         results['issues'].append({
             'type': 'DNS',
             'severity': 'High',
-            'message': f'DNS check failed: {str(e)}'
+            'message': f'DNS check failed: {str(e)[:100]}'
         })
-        print(f"  ✗ DNS check error: {str(e)}")
+        results['checked'] = True
+        print(f"  ✗ DNS check error: {str(e)[:50]}")
     
     return results
 

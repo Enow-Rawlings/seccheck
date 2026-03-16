@@ -11,9 +11,30 @@ if DATABASE_URL:
     # Use PostgreSQL on Railway
     import psycopg2
     from psycopg2.extras import RealDictCursor
+    import time
     
-    def get_connection():
-        return psycopg2.connect(DATABASE_URL, sslmode='require')
+    def get_connection(retries=3):
+        """Get PostgreSQL connection with retry logic"""
+        for attempt in range(retries):
+            try:
+                conn = psycopg2.connect(
+                    DATABASE_URL, 
+                    sslmode='require',
+                    connect_timeout=10,
+                    options='-c statement_timeout=30000'  # 30 second query timeout
+                )
+                return conn
+            except psycopg2.OperationalError as e:
+                print(f"⚠ Database connection attempt {attempt + 1} failed: {str(e)[:50]}")
+                if attempt < retries - 1:
+                    time.sleep(2)  # Wait 2 seconds before retry
+                    continue
+                else:
+                    print(f"✗ All connection attempts failed")
+                    raise
+            except Exception as e:
+                print(f"✗ Unexpected database error: {str(e)[:50]}")
+                raise
     
     def init_db():
         """Initialize PostgreSQL database"""
@@ -43,117 +64,139 @@ if DATABASE_URL:
             print("✓ PostgreSQL database initialized")
         
         except Exception as e:
-            print(f"Database initialization failed: {e}")
+            print(f"✗ Database initialization failed: {e}")
             import traceback
             traceback.print_exc()
         
     def save_scan(domain, results, user_ip=None):
-        """Save scan to PostgreSQL"""
-        conn = get_connection()
-        c = conn.cursor()
-        
-        score_data = results.get('score', {})
-        score_value = score_data.get('score', 0)
-        
-        if 'grade' not in score_data:
-            if score_value >= 90: grade = 'A'
-            elif score_value >= 80: grade = 'B'
-            elif score_value >= 70: grade = 'C'
-            elif score_value >= 60: grade = 'D'
-            else: grade = 'F'
-        else:
-            grade = score_data['grade']
-        
-        c.execute('''
-            INSERT INTO scans (domain, score, grade, scan_date, results, user_ip)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            RETURNING id
-        ''', (domain, score_value, grade, datetime.now(), json.dumps(results), user_ip))
-        
-        scan_id = c.fetchone()[0]
-        conn.commit()
-        conn.close()
-        
-        return scan_id
+        """Save scan to PostgreSQL with error handling"""
+        try:
+            conn = get_connection()
+            c = conn.cursor()
+            
+            score_data = results.get('score', {})
+            score_value = score_data.get('score', 0)
+            
+            if 'grade' not in score_data:
+                if score_value >= 90: grade = 'A'
+                elif score_value >= 80: grade = 'B'
+                elif score_value >= 70: grade = 'C'
+                elif score_value >= 60: grade = 'D'
+                else: grade = 'F'
+            else:
+                grade = score_data['grade']
+            
+            c.execute('''
+                INSERT INTO scans (domain, score, grade, scan_date, results, user_ip)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING id
+            ''', (domain, score_value, grade, datetime.now(), json.dumps(results), user_ip))
+            
+            scan_id = c.fetchone()[0]
+            conn.commit()
+            conn.close()
+            
+            print(f"✓ Scan saved with ID: {scan_id}")
+            return scan_id
+            
+        except Exception as e:
+            print(f"✗ Error saving scan: {str(e)[:100]}")
+            # Return a dummy ID so scan can continue
+            return -1
     
     def get_scan_by_id(scan_id):
         """Get scan by ID from PostgreSQL"""
-        conn = get_connection()
-        c = conn.cursor(cursor_factory=RealDictCursor)
-        
-        c.execute('''
-            SELECT id, domain, score, grade, scan_date, results, user_ip
-            FROM scans
-            WHERE id = %s
-        ''', (scan_id,))
-        
-        row = c.fetchone()
-        conn.close()
-        
-        return dict(row) if row else None
+        try:
+            conn = get_connection()
+            c = conn.cursor(cursor_factory=RealDictCursor)
+            
+            c.execute('''
+                SELECT id, domain, score, grade, scan_date, results, user_ip
+                FROM scans
+                WHERE id = %s
+            ''', (scan_id,))
+            
+            row = c.fetchone()
+            conn.close()
+            
+            return dict(row) if row else None
+            
+        except Exception as e:
+            print(f"✗ Error getting scan: {str(e)[:50]}")
+            return None
     
     def get_scan_history(domain, limit=10):
         """Get scan history for domain from PostgreSQL"""
-        conn = get_connection()
-        c = conn.cursor()
-        
-        c.execute('''
-            SELECT id, score, grade, scan_date
-            FROM scans
-            WHERE domain = %s
-            ORDER BY scan_date DESC
-            LIMIT %s
-        ''', (domain, limit))
-        
-        rows = c.fetchall()
-        conn.close()
-        
-        history = []
-        for row in rows:
-            history.append({
-                'id': row[0],
-                'score': row[1],
-                'grade': row[2],
-                'date': str(row[3])
-            })
-        
-        return history
+        try:
+            conn = get_connection()
+            c = conn.cursor()
+            
+            c.execute('''
+                SELECT id, score, grade, scan_date
+                FROM scans
+                WHERE domain = %s
+                ORDER BY scan_date DESC
+                LIMIT %s
+            ''', (domain, limit))
+            
+            rows = c.fetchall()
+            conn.close()
+            
+            history = []
+            for row in rows:
+                history.append({
+                    'id': row[0],
+                    'score': row[1],
+                    'grade': row[2],
+                    'date': str(row[3])
+                })
+            
+            return history
+            
+        except Exception as e:
+            print(f"✗ Error getting history: {str(e)[:50]}")
+            return []
     
     def get_all_scans_grouped(limit=50):
         """Get all scans grouped by domain from PostgreSQL"""
-        conn = get_connection()
-        c = conn.cursor()
-        
-        c.execute('''
-            SELECT s1.domain, 
-                   COUNT(*) as scan_count, 
-                   MAX(s1.scan_date) as last_scan,
-                   (SELECT score FROM scans s2 WHERE s2.domain = s1.domain ORDER BY scan_date DESC LIMIT 1) as latest_score,
-                   AVG(s1.score) as avg_score,
-                   MIN(s1.score) as min_score, 
-                   MAX(s1.score) as max_score
-            FROM scans s1
-            GROUP BY s1.domain
-            ORDER BY last_scan DESC
-            LIMIT %s
-        ''', (limit,))
-        
-        rows = c.fetchall()
-        conn.close()
-        
-        domains = []
-        for row in rows:
-            domains.append({
-                'domain': row[0],
-                'scan_count': row[1],
-                'last_scan': str(row[2]),
-                'latest_score': row[3] if row[3] else 0,
-                'avg_score': round(row[4], 1) if row[4] else 0,
-                'min_score': row[5],
-                'max_score': row[6]
-            })
-        
-        return domains
+        try:
+            conn = get_connection()
+            c = conn.cursor()
+            
+            c.execute('''
+                SELECT s1.domain, 
+                       COUNT(*) as scan_count, 
+                       MAX(s1.scan_date) as last_scan,
+                       (SELECT score FROM scans s2 WHERE s2.domain = s1.domain ORDER BY scan_date DESC LIMIT 1) as latest_score,
+                       AVG(s1.score) as avg_score,
+                       MIN(s1.score) as min_score, 
+                       MAX(s1.score) as max_score
+                FROM scans s1
+                GROUP BY s1.domain
+                ORDER BY last_scan DESC
+                LIMIT %s
+            ''', (limit,))
+            
+            rows = c.fetchall()
+            conn.close()
+            
+            domains = []
+            for row in rows:
+                domains.append({
+                    'domain': row[0],
+                    'scan_count': row[1],
+                    'last_scan': str(row[2]),
+                    'latest_score': row[3] if row[3] else 0,
+                    'avg_score': round(row[4], 1) if row[4] else 0,
+                    'min_score': row[5],
+                    'max_score': row[6]
+                })
+            
+            return domains
+            
+        except Exception as e:
+            print(f"✗ Error getting grouped scans: {str(e)[:50]}")
+            return []
 
 else:
     # Use SQLite locally

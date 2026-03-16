@@ -1,76 +1,9 @@
 import requests
-from threading import Thread
-import queue
 
-def check_headers_with_timeout(domain, timeout=20):
-    """Wrapper that enforces timeout using threading"""
-    result_queue = queue.Queue()
-    
-    def worker():
-        try:
-            result = check_headers_internal(domain)
-            result_queue.put(result)
-        except Exception as e:
-            result_queue.put({
-                'domain': domain,
-                'checked': False,
-                'present_headers': [],
-                'missing_headers': get_all_missing_headers(),
-                'errors': [f"Error: {str(e)[:100]}"]
-            })
-    
-    thread = Thread(target=worker)
-    thread.daemon = True
-    thread.start()
-    thread.join(timeout=timeout)
-    
-    if thread.is_alive():
-        # Timeout occurred
-        print(f"  ⚠ Header check timed out after {timeout}s")
-        return {
-            'domain': domain,
-            'checked': False,
-            'present_headers': [],
-            'missing_headers': get_all_missing_headers(),
-            'errors': [f'Timeout after {timeout} seconds']
-        }
-    
-    try:
-        return result_queue.get_nowait()
-    except queue.Empty:
-        return {
-            'domain': domain,
-            'checked': False,
-            'present_headers': [],
-            'missing_headers': get_all_missing_headers(),
-            'errors': ['Unknown error']
-        }
-
-
-def get_all_missing_headers():
-    """Return all headers as missing"""
-    important_headers = {
-        'Strict-Transport-Security': {'description': 'Forces HTTPS connections', 'risk': 'High'},
-        'Content-Security-Policy': {'description': 'Prevents XSS attacks', 'risk': 'High'},
-        'X-Frame-Options': {'description': 'Prevents clickjacking', 'risk': 'Medium'},
-        'X-Content-Type-Options': {'description': 'Prevents MIME sniffing', 'risk': 'Medium'},
-        'Referrer-Policy': {'description': 'Controls referrer information', 'risk': 'Low'},
-        'Permissions-Policy': {'description': 'Controls browser features', 'risk': 'Low'}
-    }
-    
-    return [
-        {
-            'name': name,
-            'description': info['description'],
-            'risk': info['risk'],
-            'note': 'Could not verify'
-        }
-        for name, info in important_headers.items()
-    ]
-
-
-def check_headers_internal(domain):
-    """Internal header check function"""
+def check_headers(domain):
+    """
+    Check headers with minimal timeout - fail fast
+    """
     important_headers = {
         'Strict-Transport-Security': {'description': 'Forces HTTPS connections', 'risk': 'High'},
         'Content-Security-Policy': {'description': 'Prevents XSS attacks', 'risk': 'High'},
@@ -91,19 +24,22 @@ def check_headers_internal(domain):
     
     print(f"Checking HTTP headers for {domain}...")
     
+    # Try HTTPS, then HTTP - with VERY short timeout
     for protocol in ['https', 'http']:
         try:
             url = f"{protocol}://{domain}"
             
+            # Super aggressive timeout: 3s connect, 5s read = 8s max total
             response = requests.get(
                 url,
-                timeout=(5, 10),  # Very aggressive
-                allow_redirects=False,  # Don't follow redirects
+                timeout=(3, 5),
+                allow_redirects=False,
                 headers={'User-Agent': 'SiteShield/1.0'}
             )
             
             results['checked'] = True
             
+            # Check headers
             for header_name, header_info in important_headers.items():
                 if header_name in response.headers:
                     results['present_headers'].append({
@@ -118,24 +54,38 @@ def check_headers_internal(domain):
                         'risk': header_info['risk']
                     })
             
-            print(f"  ✓ Headers checked via {protocol.upper()}")
-            break  # Success
+            print(f"  ✓ Headers checked ({protocol.upper()})")
+            return results  # Success - exit immediately
             
-        except:
-            if protocol == 'http':  # Last attempt
-                for header_name, header_info in important_headers.items():
-                    if header_name not in [h['name'] for h in results['missing_headers']]:
-                        results['missing_headers'].append({
-                            'name': header_name,
-                            'description': header_info['description'],
-                            'risk': header_info['risk']
-                        })
+        except requests.exceptions.Timeout:
+            print(f"  ⚠ Timeout on {protocol.upper()}")
             continue
+            
+        except requests.exceptions.RequestException:
+            print(f"  ⚠ Failed on {protocol.upper()}")
+            continue
+            
+        except Exception as e:
+            print(f"  ⚠ Error: {str(e)[:30]}")
+            continue
+    
+    # Both protocols failed - mark all as missing
+    print(f"  ✗ Could not check headers - domain too slow or unreachable")
+    
+    results['checked'] = True
+    results['errors'].append("Could not connect - domain unreachable or too slow")
+    
+    for header_name, header_info in important_headers.items():
+        results['missing_headers'].append({
+            'name': header_name,
+            'description': header_info['description'],
+            'risk': header_info['risk'],
+            'note': 'Could not verify'
+        })
     
     return results
 
+## AND: Increase Gunicorn Timeout to 10 Minutes
 
-# Main function to use
-def check_headers(domain):
-    """Check headers with enforced 20 second timeout"""
-    return check_headers_with_timeout(domain, timeout=20)
+# **Update `Procfile`:**
+# web: gunicorn app:app --timeout 600 --graceful-timeout 600 --workers 2

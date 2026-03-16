@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 load_dotenv()
 from flask import Flask, render_template, request, send_file, Response, stream_with_context, session, redirect
+from database import init_db, save_scan, get_scan_history, get_scan_by_id, get_all_scans_grouped
 import json
 import time
 from flask_mail import Mail, Message
@@ -10,6 +11,10 @@ from scanner.header_checker import check_headers
 from scanner.dns_checker import check_dns
 from scanner.security_score import calculate_security_score
 import os
+# import signal
+
+init_db()
+print("✓ Database initialized")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -71,7 +76,10 @@ def scan():
     # Show scanning animation
     return render_template('scanning.html', domain=domain)
 
-
+class TimeoutError(Exception):
+    pass
+def timeout_handler(signum, frame):
+    raise TimeoutError("Scan took too long and was terminated.")
 @app.route('/scan-stream/<domain>')
 def scan_stream(domain):
     """Server-Sent Events for real-time scan progress"""
@@ -79,12 +87,25 @@ def scan_stream(domain):
     import time
     
     def generate():
+        start_time = time.time()
+        max_scan_time = 240  # 4 minutes max
+        
+        def check_timeout():
+            """Check if scan has exceeded time limit"""
+            if time.time() - start_time > max_scan_time:
+                return True
+            return False
+        
         try:
             # Start
             yield f"data: {json.dumps({'step': 'start', 'message': 'Starting scan...', 'progress': 0})}\n\n"
             time.sleep(0.3)
             
             # Port scan
+            if check_timeout():
+                yield f"data: {json.dumps({'step': 'error', 'message': 'Scan timeout - domain too slow', 'progress': 0})}\n\n"
+                return
+            
             yield f"data: {json.dumps({'step': 'ports', 'message': '🔌 Scanning ports...', 'progress': 15})}\n\n"
             port_results = scan_common_ports(domain)
             open_count = len(port_results.get('open_ports', []))
@@ -92,18 +113,30 @@ def scan_stream(domain):
             yield f"data: {json.dumps({'step': 'ports_done', 'message': f'Found {open_count} open ports ({risky_count} risky)', 'progress': 35})}\n\n"
             
             # SSL
+            if check_timeout():
+                yield f"data: {json.dumps({'step': 'error', 'message': 'Scan timeout - domain too slow', 'progress': 0})}\n\n"
+                return
+            
             yield f"data: {json.dumps({'step': 'ssl', 'message': '🔒 Checking SSL certificate...', 'progress': 50})}\n\n"
             ssl_results = check_ssl(domain)
             ssl_msg = '✓ Valid SSL' if ssl_results.get('valid') else '⚠ SSL issues detected'
             yield f"data: {json.dumps({'step': 'ssl_done', 'message': ssl_msg, 'progress': 60})}\n\n"
             
             # Headers
+            if check_timeout():
+                yield f"data: {json.dumps({'step': 'error', 'message': 'Scan timeout - domain too slow', 'progress': 0})}\n\n"
+                return
+            
             yield f"data: {json.dumps({'step': 'headers', 'message': '📋 Analyzing security headers...', 'progress': 70})}\n\n"
             header_results = check_headers(domain)
             missing_count = len(header_results.get('missing_headers', []))
             yield f"data: {json.dumps({'step': 'headers_done', 'message': f'{missing_count} headers missing', 'progress': 80})}\n\n"
             
             # DNS
+            if check_timeout():
+                yield f"data: {json.dumps({'step': 'error', 'message': 'Scan timeout - domain too slow', 'progress': 0})}\n\n"
+                return
+            
             yield f"data: {json.dumps({'step': 'dns', 'message': '🌐 Checking DNS configuration...', 'progress': 90})}\n\n"
             dns_results = check_dns(domain)
             yield f"data: {json.dumps({'step': 'dns_done', 'message': 'DNS check complete', 'progress': 95})}\n\n"
@@ -122,23 +155,17 @@ def scan_stream(domain):
             results['score'] = score_data
             
             # Save to database
-            from database import init_db, save_scan, get_scan_history
-            init_db()
-            print("Database Initialized")
+            from database import save_scan, get_scan_history
             user_ip = request.remote_addr
             scan_id = save_scan(domain, results, user_ip)
             
-            # Get history
-            history = get_scan_history(domain, limit=5)
-            
-            # Store in session for results page
-                        # Complete
+            # Complete
             score_value = score_data.get('score', 0)
             grade = score_data.get('grade', 'F')
             
             # Redirect to results with scan_id
             yield f"data: {json.dumps({'step': 'complete', 'message': f'Complete! Score: {score_value}/100 (Grade {grade})', 'progress': 100, 'redirect': f'/results/{scan_id}'})}\n\n"
-
+            
         except Exception as e:
             print(f"Scan error: {e}")
             import traceback

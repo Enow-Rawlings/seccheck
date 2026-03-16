@@ -25,7 +25,8 @@ def check_ssl(domain):
         # Connect to the domain on port 443 (HTTPS)
         print(f"Checking SSL for {domain}...")
         
-        with socket.create_connection((domain, 443), timeout=5) as sock:
+        # Set aggressive timeout - 10 seconds max
+        with socket.create_connection((domain, 443), timeout=10) as sock:
             with context.wrap_socket(sock, server_hostname=domain) as ssock:
                 # Get the certificate
                 cert = ssock.getpeercert()
@@ -58,16 +59,57 @@ def check_ssl(domain):
         
     except ssl.SSLError as e:
         results['has_ssl'] = True  # Has SSL but with errors
-        results['errors'].append(f"SSL Error: {str(e)}")
-        print(f"  ✗ SSL Error: {str(e)}")
+        error_msg = str(e)
+        
+        # Make SSL errors more user-friendly
+        if 'CERTIFICATE_VERIFY_FAILED' in error_msg:
+            results['errors'].append("SSL certificate verification failed - certificate may be self-signed or invalid")
+        elif 'SSLV3_ALERT_HANDSHAKE_FAILURE' in error_msg:
+            results['errors'].append("SSL handshake failed - server may use outdated encryption")
+        else:
+            results['errors'].append(f"SSL Error: {error_msg[:100]}")  # Truncate long errors
+        
+        print(f"  ⚠ SSL Error: {error_msg[:50]}...")
+        
+    except socket.timeout:
+        # Specific handling for timeout
+        results['errors'].append(f"Connection timeout - {domain} took too long to respond (>10 seconds)")
+        results['has_ssl'] = False  # Can't verify
+        print(f"  ⚠ Timeout - domain too slow to respond")
         
     except socket.gaierror:
-        results['errors'].append("Could not resolve domain")
+        results['errors'].append("Could not resolve domain - DNS lookup failed")
         print(f"  ✗ Could not resolve domain")
         
+    except ConnectionRefusedError:
+        results['errors'].append("Connection refused - server rejected connection on port 443")
+        results['has_ssl'] = False
+        print(f"  ✗ Connection refused")
+        
+    except OSError as e:
+        # Catch network-related errors
+        error_msg = str(e)
+        if 'timed out' in error_msg.lower():
+            results['errors'].append(f"Connection timeout - {domain} did not respond")
+            print(f"  ⚠ Connection timed out")
+        elif 'refused' in error_msg.lower():
+            results['errors'].append("Connection refused - no HTTPS service available")
+            print(f"  ✗ Connection refused")
+        else:
+            results['errors'].append(f"Network error: {error_msg[:100]}")
+            print(f"  ✗ Network error: {error_msg[:50]}...")
+        
     except Exception as e:
-        results['errors'].append(f"Connection error: {str(e)}")
-        print(f"  ✗ Error: {str(e)}")
+        # Catch-all for any other errors
+        error_msg = str(e)
+        
+        # Check if it's a timeout-related error
+        if 'timed out' in error_msg.lower() or 'timeout' in error_msg.lower():
+            results['errors'].append(f"Timeout - {domain} too slow to respond")
+            print(f"  ⚠ Timeout")
+        else:
+            results['errors'].append(f"Error: {error_msg[:100]}")
+            print(f"  ✗ Error: {error_msg[:50]}...")
     
     return results
 
@@ -76,24 +118,35 @@ def check_ssl(domain):
 if __name__ == '__main__':
     print("=== SSL Certificate Checker ===\n")
     
-    # Test with a known good site
-    result = check_ssl('fitgirl-repacks.site')
+    # Test with multiple domains
+    test_domains = [
+        'google.com',      # Should pass
+        'expired.badssl.com',  # Expired cert
+        'self-signed.badssl.com',  # Self-signed
+        'nonexistent-domain-12345.com'  # Doesn't exist
+    ]
     
-    print("\n=== RESULTS ===")
-    print(f"Domain: {result['domain']}")
-    print(f"Has SSL: {result['has_ssl']}")
-    print(f"Valid: {result['valid']}")
-    
-    if result['issuer']:
-        print(f"Issued by: {result['issuer']}")
-    
-    if result['expires']:
-        print(f"Expires: {result['expires']}")
-        print(f"Days remaining: {result['days_remaining']}")
-    
-    if result['errors']:
-        print(f"\n⚠️  Issues Found:")
-        for error in result['errors']:
-            print(f"  - {error}")
-    else:
-        print("\n✓ No issues found!")
+    for domain in test_domains:
+        print(f"\n{'='*50}")
+        result = check_ssl(domain)
+        
+        print("\n=== RESULTS ===")
+        print(f"Domain: {result['domain']}")
+        print(f"Has SSL: {result['has_ssl']}")
+        print(f"Valid: {result['valid']}")
+        
+        if result['issuer']:
+            print(f"Issued by: {result['issuer']}")
+        
+        if result['expires']:
+            print(f"Expires: {result['expires']}")
+            print(f"Days remaining: {result['days_remaining']}")
+        
+        if result['errors']:
+            print(f"\n⚠️  Issues Found:")
+            for error in result['errors']:
+                print(f"  - {error}")
+        else:
+            print("\n✓ No issues found!")
+        
+        print(f"{'='*50}")

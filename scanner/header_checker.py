@@ -46,15 +46,15 @@ def check_headers(domain):
     try:
         print(f"Checking HTTP headers for {domain}...")
         
-        # Make HTTPS request to get headers with longer timeout
+        # Make HTTPS request to get headers with dual timeout
         url = f"https://{domain}"
         
-        # Increased timeout to 20 seconds for slow domains
+        # (connect_timeout, read_timeout)
         response = requests.get(
             url, 
-            timeout=20,  # Increased from 10 to 20 seconds
+            timeout=(10, 20),  # 10s to connect, 20s to read
             allow_redirects=True,
-            headers={'User-Agent': 'SiteShield-Security-Scanner/1.0'}  # Identify ourselves
+            headers={'User-Agent': 'SiteShield-Security-Scanner/1.0'}
         )
         
         results['checked'] = True
@@ -83,14 +83,19 @@ def check_headers(domain):
     except requests.exceptions.SSLError as e:
         error_msg = "SSL error - could not establish secure connection"
         results['errors'].append(error_msg)
-        results['checked'] = True  # Mark as checked even with error
-        print(f"  ⚠ SSL error (continuing scan)")
+        results['checked'] = True
+        print(f"  ⚠ SSL error (trying HTTP fallback)")
         
         # Try HTTP as fallback
         try:
             print(f"  → Retrying with HTTP...")
             url = f"http://{domain}"
-            response = requests.get(url, timeout=20, allow_redirects=True)
+            response = requests.get(
+                url, 
+                timeout=(10, 20),  # Same dual timeout
+                allow_redirects=True,
+                headers={'User-Agent': 'SiteShield-Security-Scanner/1.0'}
+            )
             
             # Check headers from HTTP response
             for header_name, header_info in important_headers.items():
@@ -110,15 +115,23 @@ def check_headers(domain):
             print(f"  ✓ Headers check complete (via HTTP)")
             
         except Exception as fallback_error:
-            print(f"  ✗ HTTP fallback also failed")
-            results['errors'].append(f"Both HTTPS and HTTP failed: {str(fallback_error)}")
+            print(f"  ✗ HTTP fallback also failed: {str(fallback_error)}")
+            # Mark all as missing since we couldn't check
+            for header_name, header_info in important_headers.items():
+                if header_name not in [h['name'] for h in results['missing_headers']]:
+                    results['missing_headers'].append({
+                        'name': header_name,
+                        'description': header_info['description'],
+                        'risk': header_info['risk'],
+                        'note': 'Could not verify - connection failed'
+                    })
         
-    except requests.exceptions.Timeout:
-        error_msg = f"Request timed out after 20 seconds - {domain} is very slow"
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout) as e:
+        error_msg = f"Timeout - {domain} did not respond within 30 seconds"
         results['errors'].append(error_msg)
-        results['checked'] = True  # Mark as checked
+        results['checked'] = True
         
-        # Still return missing headers since we couldn't check
+        # Mark all headers as missing since we couldn't check
         for header_name, header_info in important_headers.items():
             results['missing_headers'].append({
                 'name': header_name,
@@ -127,7 +140,7 @@ def check_headers(domain):
                 'note': 'Could not verify - timeout'
             })
         
-        print(f"  ⚠ Timeout - domain too slow (marked all headers as missing)")
+        print(f"  ⚠ Timeout after 30s - domain extremely slow")
         
     except requests.exceptions.ConnectionError as e:
         error_msg = f"Could not connect to {domain}"
@@ -143,7 +156,7 @@ def check_headers(domain):
                 'note': 'Could not verify - connection failed'
             })
         
-        print(f"  ⚠ Connection failed (marked all headers as missing)")
+        print(f"  ⚠ Connection failed")
         
     except Exception as e:
         error_msg = f"Unexpected error: {str(e)}"
@@ -152,14 +165,15 @@ def check_headers(domain):
         
         # Mark all as missing
         for header_name, header_info in important_headers.items():
-            results['missing_headers'].append({
-                'name': header_name,
-                'description': header_info['description'],
-                'risk': header_info['risk'],
-                'note': 'Could not verify - error occurred'
-            })
+            if header_name not in [h['name'] for h in results['missing_headers']]:
+                results['missing_headers'].append({
+                    'name': header_name,
+                    'description': header_info['description'],
+                    'risk': header_info['risk'],
+                    'note': 'Could not verify - error occurred'
+                })
         
-        print(f"  ⚠ Error: {str(e)} (continuing scan)")
+        print(f"  ⚠ Error: {str(e)}")
     
     return results
 
